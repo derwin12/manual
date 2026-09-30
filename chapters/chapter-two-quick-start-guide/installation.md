@@ -2,7 +2,9 @@
 
 ## Installation
 
-Download the xLights and QM Vamp Plugins installer from [https://xlights.org/releases/](https://xlights.org/releases/)
+Download the xLights from [https://xlights.org/releases/](https://xlights.org/releases/)
+
+Download Queen Mary VAMP plugins from [https://www.vamp-plugins.org/pack.html](https://www.vamp-plugins.org/pack.html)
 
 ![](<../../.gitbook/assets/image (687).png>)
 
