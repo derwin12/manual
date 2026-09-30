@@ -37,6 +37,9 @@ xLights works with the x64 Emulation in Windows on ARM. To work correctly a Open
 
 ### Installing Queen Mary Vamp Plugins
 
-If you do not have Audacity installed on your computer, then you should at least install the Queen Mary Vamp plugins for Audacity.
 
-For the QM vamp plugin packages that can be installed without Audacity installed you will need to download two installers, the first is the Microsoft Visual C++ 2015 Redistributable([vc\_redist.x64.exe](https://www.microsoft.com/en-us/download/confirmation.aspx?id=52685)) and the second is the QM Vamp Plugins([Vamp\_Plugin64.exe](https://xlights.org/downloads/Vamp_Plugin64.exe)). Both installer can be found at: [https://xlights.org/releases/](https://xlights.org/releases/). Run the "vc\_redist.x64.exe" installer first and then the "Vamp\_Plugin64.exe" installer.
+
+Download the Queen Mary VAMP plugins from [https://www.vamp-plugins.org/pack.html](https://www.vamp-plugins.org/pack.html)
+
+![](<../../.gitbook/assets/image (58).png>)
+
