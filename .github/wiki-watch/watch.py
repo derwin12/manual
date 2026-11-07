@@ -199,37 +199,116 @@ def new_entries(old_text: str | None, new_text: str) -> list[dict]:
 # --------------------------------------------------------------------------
 # Effect metadata diff
 # --------------------------------------------------------------------------
-def metadata_changes(old: str | None, new: str | None) -> tuple[str, list[str]]:
+def item(text: str, terms: list[str] | None = None, mode: str = "terms") -> dict:
+    """A checklist item.  ``terms`` are looked for on the wiki page:
+    mode "terms" -> pre-tick when most are found; "labels" -> list the ones
+    missing (pre-tick when none are); "none" -> no coverage check."""
+    return {"text": text, "terms": terms or [], "mode": mode}
+
+
+def metadata_changes(old: str | None, new: str | None) -> tuple[str, list[dict]]:
     o = json.loads(old) if old else {"properties": []}
     n = json.loads(new) if new else {"properties": []}
     name = n.get("effectName") or o.get("effectName") or "?"
     if not new:
-        return name, ["effect metadata file removed"]
+        return name, [item("effect metadata file removed", mode="none")]
     op = {p["id"]: p for p in o.get("properties", []) if "id" in p}
     np_ = {p["id"]: p for p in n.get("properties", []) if "id" in p}
     if not old:
-        return name, [f"metadata file added ({len(np_)} options): check the page's options table against it"]
+        labels = [p["label"] for p in np_.values() if p.get("label")]
+        return name, [item(f"metadata file added ({len(np_)} options)", labels, "labels")]
     out = []
     for pid in np_.keys() - op.keys():
         p = np_[pid]
-        out.append(f"new option **{p.get('label', pid)}** (`{pid}`, {p.get('controlType', p.get('type', ''))})")
+        label = p.get("label", pid)
+        out.append(item(f"new option **{label}** (`{pid}`, {p.get('controlType', p.get('type', ''))})", [label], "labels"))
     for pid in op.keys() - np_.keys():
-        out.append(f"option removed: **{op[pid].get('label', pid)}** (`{pid}`)")
+        out.append(item(f"option removed: **{op[pid].get('label', pid)}** (`{pid}`)", mode="none"))
     for pid in op.keys() & np_.keys():
         a, b = op[pid], np_[pid]
+        label = b.get("label", pid)
         if a.get("label") != b.get("label"):
-            out.append(f"option renamed: **{a.get('label')}** -> **{b.get('label')}** (`{pid}`)")
+            out.append(item(f"option renamed: **{a.get('label')}** -> **{b.get('label')}** (`{pid}`)", [label], "labels"))
         ao, bo = a.get("options") or [], b.get("options") or []
         added = [x for x in bo if x not in ao]
         gone = [x for x in ao if x not in bo]
         if added:
-            out.append(f"**{b.get('label', pid)}**: new choice{'s' * (len(added) > 1)} " + ", ".join(f"`{x}`" for x in added))
+            out.append(item(f"**{label}**: new choice{'s' * (len(added) > 1)} " + ", ".join(f"`{x}`" for x in added),
+                            [str(x) for x in added], "labels"))
         if gone:
-            out.append(f"**{b.get('label', pid)}**: choice{'s' * (len(gone) > 1)} removed " + ", ".join(f"`{x}`" for x in gone))
+            out.append(item(f"**{label}**: choice{'s' * (len(gone) > 1)} removed " + ", ".join(f"`{x}`" for x in gone),
+                            mode="none"))
         for k in ("default", "min", "max"):
             if k in a and k in b and a[k] != b[k]:
-                out.append(f"**{b.get('label', pid)}**: {k} {a[k]} -> {b[k]}")
+                out.append(item(f"**{label}**: {k} {a[k]} -> {b[k]}", mode="none"))
     return name, out
+
+
+# --------------------------------------------------------------------------
+# Is it already on the wiki page?
+# --------------------------------------------------------------------------
+TERM_STOP = {"The", "A", "An", "New", "Now", "Added", "Add", "Fixed", "When", "If", "It", "This", "That",
+             "Allow", "Allows", "Use", "Uses", "Show", "Shows", "Can", "No", "On", "Off", "And", "Or",
+             "For", "With", "In", "To", "Of", "By", "Also", "More", "Better", "Faster", "Large", "Some",
+             "All", "Each", "Better", "Large", "Shift", "Ctrl", "Alt", "Esc", "OK", "Cancel", "Yes",
+             "Windows", "macOS", "Linux", "iPad", "Apple", "Intel", "GPU", "CPU", "UI", "AI", "xLights"}
+CONNECTOR = r"(?:to|of|and|the|for|in|on|from|with|a|an|as|by|&)"
+
+
+def extract_terms(text: str, page: str) -> list[str]:
+    """Distinctive names in a changelog entry: quoted text, menu items, and
+    capitalised (multi-)word feature names.  The page's own subject is skipped."""
+    text = re.sub(r"\(#\d+\)", "", text)
+    # words that only name the page itself are no evidence of coverage
+    subject = {w.lower() for w in re.split(r"[-\s]", split_camel(page)) if w}
+    subject |= {"effect", "effects", "tab", "dialog", "panel", "menu", "option", "options", "model", "models",
+                "settings", "window", "button", "box"}
+    terms: list[str] = []
+    for q in re.findall(r"[\"“]([^\"”]{3,60})[\"”]", text):  # quoted names
+        terms.append(q.strip())
+    for path in re.findall(r"(?:[A-Z][\w ]+\s*>\s*)+[A-Z][\w ]+", text):  # menu paths: last item
+        terms.append(path.split(">")[-1].strip())
+    for m in re.finditer(rf"\b[A-Z][\w+/-]*(?:\s+(?:{CONNECTOR}\s+)?[A-Z][\w+/-]*)+", text):  # Feature Names
+        terms.append(m.group(0))
+    for m in re.finditer(r"\b[A-Z]{2,}[\w]*\b|\b[a-z]+[A-Z]\w*\b|\b[A-Z][a-z]+[A-Z]\w*\b", text):  # ACRONYM, camelCase
+        terms.append(m.group(0))
+    out, seen = [], set()
+    for t in terms:
+        t = t.strip(" .,:;-")
+        words = [w.lower() for w in re.split(r"[\s/-]+", t) if w]
+        if (len(t) < 3 or t in TERM_STOP or t.lower() in seen or re.fullmatch(r"[\d.x]+", t)
+                or all(w in subject or w in CONNECTOR for w in words)):
+            continue
+        seen.add(t.lower())
+        out.append(t)
+    # a single word already inside a longer term adds nothing
+    out = [t for t in out if " " in t or not any(t.lower() in o.lower() and o != t for o in out)]
+    return out[:8]
+
+
+def norm(s: str) -> str:
+    s = re.sub(r"[*_`\"“”'|>\[\]()]", " ", s.lower())
+    return " " + " ".join(s.split()) + " "
+
+
+def coverage(it: dict, page_text: str | None) -> tuple[bool, str]:
+    """(pre-tick?, note) for an item against its page's text."""
+    if page_text is not None and it["mode"] == "labels" and not it["terms"]:
+        return True, "no options to document"
+    if page_text is None or it["mode"] == "none" or not it["terms"]:
+        return False, ""
+    body = norm(page_text)
+    found = [t for t in it["terms"] if norm(t).strip() and f" {norm(t).strip()} " in body]
+    missing = [t for t in it["terms"] if t not in found]
+    if it["mode"] == "labels":
+        if not missing:
+            return True, f"all {len(found)} on the page" if len(found) > 1 else "on the page"
+        return False, "missing from page: " + ", ".join(missing[:25]) + (" …" if len(missing) > 25 else "")
+    # changelog entry: need most terms, and more than one unless it is long/quoted
+    strong = len(it["terms"]) >= 2 or (found and len(found[0]) >= 12)
+    if strong and found and len(found) / len(it["terms"]) >= 0.67:
+        return True, "looks covered: " + ", ".join(found[:4])
+    return False, ""
 
 
 # --------------------------------------------------------------------------
@@ -275,22 +354,41 @@ class Matcher:
 # --------------------------------------------------------------------------
 # Report
 # --------------------------------------------------------------------------
-def build_report(entries, meta, matcher: Matcher, wiki_repo: str, header: str) -> list[str]:
+def build_report(entries, meta, matcher: Matcher, wiki_repo: str, header: str,
+                 wiki_dir: Path | None = None, stats: dict | None = None) -> list[str]:
+    stats = stats if stats is not None else {}
+    cache: dict[str, str | None] = {}
+
+    def page_text(page: str) -> str | None:
+        if wiki_dir is None:
+            return None
+        if page not in cache:
+            f = wiki_dir / f"{page}.md"
+            cache[page] = f.read_text(encoding="utf-8") if f.exists() else None
+        return cache[page]
+
+    def line(prefix: str, it: dict, page: str | None) -> str:
+        ticked, note = coverage(it, page_text(page)) if page else (False, "")
+        stats["items"] = stats.get("items", 0) + 1
+        stats["ticked"] = stats.get("ticked", 0) + ticked
+        box = "- [x]" if ticked else "- [ ]"
+        return f"{box} {prefix}{it['text']}" + (f" _({note})_" if note else "")
+
     by_page: dict[str, list[str]] = defaultdict(list)
     for name, changes in meta:
         page = (SHARED_PANEL_PAGES.get(name) or matcher.effect_page(name)
                 or f"Effect-{name.replace(' ', '')}")
         for c in changes:
-            by_page[page].append(f"- [ ] metadata: {c}")
+            by_page[page].append(line("metadata: ", c, page))
     unsorted = []
     for e in entries:
         who = f" ({e['author']})" if e["author"] else ""
-        line = f"- [ ] **{e['version']}**{who} {e['text']}" if e["version"] else f"- [ ] {e['text']}"
+        prefix = f"**{e['version']}**{who} " if e["version"] else ""
         pages = matcher.match(e["text"])
         if not pages:
-            unsorted.append(line)
+            unsorted.append(line(prefix, item(e["text"], mode="none"), None))
         for p in pages:
-            by_page[p].append(line)
+            by_page[p].append(line(prefix, item(e["text"], extract_terms(e["text"], p)), p))
 
     base = WIKI_URL.format(repo=wiki_repo)
     sections = []
@@ -302,7 +400,9 @@ def build_report(entries, meta, matcher: Matcher, wiki_repo: str, header: str) -
         sections.append("\n".join(["### Unsorted: pick a page or tick if not doc-relevant", *unsorted]))
 
     footer = ("\n---\nTick an item once the wiki covers it (or it needs no doc change). "
-              "Entries can appear under more than one page; tick each where it applies.")
+              "Entries can appear under more than one page; tick each where it applies.\n"
+              "Items already ticked were found on the page automatically (_looks covered_ / "
+              "_on the page_): spot-check them and untick any that are wrong.")
     bodies, cur = [], header
     for s in sections:
         if len(cur) + len(s) + len(footer) > ISSUE_LIMIT:
@@ -366,8 +466,10 @@ def main() -> int:
     if not entries and not meta:
         print(f"{len(files)} files changed, nothing doc-relevant.")
     else:
-        bodies = build_report(entries, meta, matcher, args.wiki_repo, header)
-        print(f"{len(entries)} entries, {len(meta)} effects with option changes, {len(bodies)} issue(s)")
+        stats: dict = {}
+        bodies = build_report(entries, meta, matcher, args.wiki_repo, header, Path(args.wiki_dir), stats)
+        print(f"{len(entries)} entries, {len(meta)} effects with option changes, {len(bodies)} issue(s); "
+              f"{stats.get('ticked', 0)} of {stats.get('items', 0)} items pre-ticked as already on the wiki")
         for i, body in enumerate(bodies, 1):
             t = title + (f" [{i}/{len(bodies)}]" if len(bodies) > 1 else "")
             if args.dry_run:
