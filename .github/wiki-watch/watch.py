@@ -132,14 +132,21 @@ class Source:
     def changed_files(self, old: str, new: str) -> list[str]:
         if self.local:
             return self._git("diff", "--name-only", old, new).split()
-        files, page = [], 1
-        while True:
-            r = self._api(f"/repos/{self.repo}/compare/{old}...{new}?per_page=100&page={page}")
-            batch = [f["filename"] for f in r.get("files", [])]
-            files += batch
-            if len(batch) < 100:
-                return files
-            page += 1
+        r = self._api(f"/repos/{self.repo}/compare/{old}...{new}")
+        files = [f["filename"] for f in r.get("files", [])]
+        if len(files) >= 300:
+            # the compare API stops listing files at 300: fall back to the files
+            # we care about, at either commit, and let the content diff decide
+            files = sorted({CHANGELOG, *self.list_dir(METADATA_DIR, old), *self.list_dir(METADATA_DIR, new)})
+        return files
+
+    def list_dir(self, path: str, sha: str) -> list[str]:
+        """All files under ``path`` at ``sha`` (recursive)."""
+        try:
+            tree = self._api(f"/repos/{self.repo}/git/trees/{sha}?recursive=1")
+        except urllib.error.HTTPError:
+            return []
+        return [t["path"] for t in tree.get("tree", []) if t["type"] == "blob" and t["path"].startswith(path)]
 
     def read(self, path: str, sha: str) -> str | None:
         if self.local:
