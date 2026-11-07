@@ -2,7 +2,7 @@
 
 ## Backup
 
-![](<../../../../.gitbook/assets/image (1006).png>)
+![](<../../../../.gitbook/assets/xlights-preferences-2026.png>)
 
 ### Backup On Save
 

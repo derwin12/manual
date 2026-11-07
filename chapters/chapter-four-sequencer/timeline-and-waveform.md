@@ -4,7 +4,7 @@
 
 The top section of the display window is the Timeline section and indicates the scale that the waveform and sequencer is displaying.
 
-![](<../../.gitbook/assets/pasted image 0.png>)
+![](<../../.gitbook/assets/xlights-sequencer-timeline-2026.png>)
 
 You can select an area on the timeline – depicted by the arrows - and you can then play that section once independent of the section highlighted to be played on the waveform. At the end of playing that section, the highlighted arrows disappear, leaving the waveform highlight to be played. Clicking anywhere in the timeline or highlighting an area in the timeline initiates auto play, without losing the waveform selection.
 

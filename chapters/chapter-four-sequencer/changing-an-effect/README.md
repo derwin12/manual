@@ -6,9 +6,7 @@
 
 To change an Effects setting, Select the effect in the sequencer timeline and open the Effects setting window using the shortcut in the top toolbar.
 
-![](<../../../.gitbook/assets/image (140).png>)
-
-![](<../../../.gitbook/assets/image (793).png>)
+![](<../../../.gitbook/assets/xlights-effect-settings-2026.png>)
 
 Each effect type has specific settings that can be used to manipulate the effect. These setting are specific to the currently selected effects. If multiple effect are selected the Effects setting panel will display the setting of the first effect. The "Update" button will change the settings of **all** the selected effects to current values used in the Effect Setting Dialog. To updated individual setting across multiple effects use the Bulk Edit option described below.
 

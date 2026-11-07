@@ -8,7 +8,7 @@ Backup Preferences contains all the backup and restore settings.
 [backup.md](backup.md)
 {% endcontent-ref %}
 
-![](<../../../../.gitbook/assets/image (35).png>)
+![](<../../../../.gitbook/assets/xlights-preferences-2026.png>)
 
 ## View
 

@@ -4,9 +4,7 @@
 
 There are several windows that are used to select different properties, setting, or views when using the sequencer tab.
 
-![](<../../.gitbook/assets/image (231).png>)
-
-![](<../../.gitbook/assets/image (780).png>)
+![](<../../.gitbook/assets/xlights-toolbar-2026.png>)
 
 To select additional Windows, click on View/Windows and select the window to have displayed. If the window is already open, selecting it will close the window.
 
