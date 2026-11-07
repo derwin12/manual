@@ -1,0 +1,62 @@
+name: xLights wiki watch
+
+# Every 48 hours: sync derwin12/xLights from xLightsSequencer/xLights, then open
+# a "Wiki review" issue listing new changelog entries and effect-option changes,
+# grouped by the wiki page they affect.  See .github/wiki-watch/watch.py.
+
+on:
+  schedule:
+    - cron: "0 7 */2 * *" # 07:00 UTC every other day (resets at month end)
+  workflow_dispatch:
+    inputs:
+      old:
+        description: "Start from this xLights commit instead of the last processed one"
+        required: false
+
+permissions:
+  contents: write # commit .github/wiki-watch/last-sha
+  issues: write
+
+concurrency:
+  group: xlights-wiki-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync derwin12/xLights from upstream
+        env:
+          GH_TOKEN: ${{ secrets.XLIGHTS_FORK_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::XLIGHTS_FORK_TOKEN secret not set - skipping fork sync, reporting on the fork as it is"
+            exit 0
+          fi
+          gh repo sync derwin12/xLights --source xLightsSequencer/xLights --branch master
+
+      - name: Fetch the wiki page list
+        run: git clone --depth 1 "https://github.com/${{ github.repository }}.wiki.git" wiki
+
+      - name: Open wiki review issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OLD: ${{ inputs.old }}
+        run: |
+          python .github/wiki-watch/watch.py \
+            --repo derwin12/xLights --branch master \
+            --wiki-dir wiki --wiki-repo "${{ github.repository }}" \
+            --issue-repo "${{ github.repository }}" \
+            ${OLD:+--old "$OLD"}
+
+      - name: Save last processed commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/wiki-watch/last-sha
+          if ! git diff --cached --quiet; then
+            git commit -m "wiki-watch: processed xLights up to $(cut -c1-9 .github/wiki-watch/last-sha)"
+            git push
+          fi
