@@ -37,8 +37,8 @@ jobs:
           fi
           gh repo sync derwin12/xLights --source xLightsSequencer/xLights --branch master
 
-      - name: Fetch the wiki page list
-        run: git clone --depth 1 "https://github.com/${{ github.repository }}.wiki.git" wiki
+      - name: Fetch the official wiki page list
+        run: git clone --depth 1 "https://github.com/xLightsSequencer/xLights.wiki.git" wiki
 
       - name: Open wiki review issue
         env:
@@ -47,7 +47,7 @@ jobs:
         run: |
           python .github/wiki-watch/watch.py \
             --repo derwin12/xLights --branch master \
-            --wiki-dir wiki --wiki-repo "${{ github.repository }}" \
+            --wiki-dir wiki --wiki-repo xLightsSequencer/xLights \
             --issue-repo "${{ github.repository }}" \
             ${OLD:+--old "$OLD"}
 

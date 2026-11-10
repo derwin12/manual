@@ -429,7 +429,7 @@ def main() -> int:
     ap.add_argument("--old", help="override the starting commit (default: --state file)")
     ap.add_argument("--new", help="override the end commit (default: head of --branch)")
     ap.add_argument("--wiki-dir", required=True, help="checkout of the wiki (for the page list)")
-    ap.add_argument("--wiki-repo", default="derwin12/manual", help="repo whose wiki the links point at")
+    ap.add_argument("--wiki-repo", default="xLightsSequencer/xLights", help="repo whose wiki the links point at")
     ap.add_argument("--issue-repo", default="derwin12/manual")
     ap.add_argument("--labels", default="wiki-review,wiki-migration")
     ap.add_argument("--dry-run", action="store_true", help="print the issue instead of opening it")
